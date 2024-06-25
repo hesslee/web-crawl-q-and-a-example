@@ -24,15 +24,14 @@ HTTP_URL_PATTERN = r'^http[s]{0,1}://.+$'
 # openai.api_key = '<Your API Key>'
 
 # Define root domain to crawl
-domain = "altibase.com"
-full_url = "https://altibase.com/"
-if full_url.startswith("https://"):
+#domain = "github.com/ALTIBASE/Documents"
+top_url = "https://docs.altibase.com/"
+if top_url.startswith("https://"):
     prefix_url = "https://"
-elif full_url.startswith("http://"):
+elif top_url.startswith("http://"):
     prefix_url = "http://"
 else:
     raise ValueError("invalid top url")
-prefix_len = len(prefix_url)
 
 # Create a class to parse the HTML and get the hyperlinks
 class HyperlinkParser(HTMLParser):
@@ -61,8 +60,9 @@ def get_hyperlinks(url):
         # Open the URL and read the HTML
         with urllib.request.urlopen(url) as response:
 
+            content_type = response.info().get('Content-Type')
             # If the response is not HTML, return an empty list
-            if not response.info().get('Content-Type').startswith("text/html"):
+            if not content_type.startswith("text/html"):
                 return []
             
             # Decode the HTML
@@ -91,7 +91,8 @@ def get_domain_hyperlinks(local_domain, url):
         if re.search(HTTP_URL_PATTERN, link):
             # Parse the URL and check if the domain is the same
             url_obj = urlparse(link)
-            if url_obj.netloc == local_domain:
+            #if url_obj.netloc == local_domain:
+            if link.startswith(top_url):
                 clean_link = link
 
         # If the link is not a URL, check if it is a relative link
@@ -104,7 +105,10 @@ def get_domain_hyperlinks(local_domain, url):
                 or link.startswith("tel:")
             ):
                 continue
-            clean_link = prefix_url + local_domain + "/" + link
+            #clean_link = "https://" + local_domain + "/" + link
+            rel_link = prefix_url + local_domain + "/" + link
+            if rel_link.startswith(top_url):
+                clean_link = rel_link
 
         if clean_link is not None:
             if clean_link.endswith("/"):
@@ -150,7 +154,7 @@ def crawl(url):
         # Try extracting the text from the link, if failed proceed with the next item in the queue
         try:
             # Save text from the url to a <url>.txt file
-            with open('text/'+local_domain+'/'+url[prefix_len:].replace("/", "_") + ".txt", "w", encoding="UTF-8") as f:
+            with open('text/'+local_domain+'/'+url[len(prefix_url):].replace("/", "_") + ".txt", "w", encoding="UTF-8") as f:
 
                 # Get the text from the URL using BeautifulSoup
                 soup = BeautifulSoup(requests.get(url).text, "html.parser")
@@ -173,8 +177,8 @@ def crawl(url):
                 queue.append(link)
                 seen.add(link)
 
-crawl(full_url)
-
+crawl(top_url)
+'''
 ################################################################################
 ### Step 5
 ################################################################################
@@ -299,7 +303,6 @@ df = pd.DataFrame(shortened, columns = ['text'])
 df['n_tokens'] = df.text.apply(lambda x: len(tokenizer.encode(x)))
 df.n_tokens.hist()
 
-'''
 ################################################################################
 ### Step 10
 ################################################################################
